@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>봉사장학생 온라인 출근부</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter / Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        /* Styles specifically for A4 Printable Document */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                font-size: 11pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .a4-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 12mm;
+            }
+            /* Ensure borders print crisp */
+            table, th, td {
+                border-color: #000000 !important;
+            }
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+    <!-- TOP HEADER (No Print) -->
+    <header class="no-print bg-brand-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-brand-600 p-2 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-graduation-cap text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">대학교 봉사장학생 출근부</h1>
+                    <p class="text-xs text-brand-100" id="header-dept-display">컴퓨터공학과 학과사무실</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3 text-right">
+                <div class="hidden sm:block">
+                    <p class="text-xs text-brand-100" id="current-date-str">2026년 10월 27일 (화)</p>
+                    <p class="font-mono font-semibold text-base text-amber-300" id="realtime-clock">17:07:00</p>
+                </div>
+                <button onclick="toggleMobileNav()" class="sm:hidden p-2 text-brand-100 hover:text-white">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="bg-brand-700/60 border-t border-brand-600/50">
+            <div class="max-w-5xl mx-auto px-4 flex space-x-1 overflow-x-auto text-sm" id="nav-tabs">
+                <button onclick="switchTab('student')" id="tab-btn-student" class="tab-btn px-4 py-2.5 font-medium border-b-2 border-amber-400 text-white flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-user-check"></i>
+                    <span>출/퇴근 체크</span>
+                </button>
+                <button onclick="switchTab('print')" id="tab-btn-print" class="tab-btn px-4 py-2.5 font-medium border-b-2 border-transparent text-brand-100 hover:text-white flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span>월별 출근부 (A4 인쇄/장학금 계산)</span>
+                </button>
+                <button onclick="switchTab('admin')" id="tab-btn-admin" class="tab-btn px-4 py-2.5 font-medium border-b-2 border-transparent text-brand-100 hover:text-white flex items-center space-x-2 whitespace-nowrap">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>관리자 / GPS 설정</span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6">
+
+        <!-- ========================================== -->
+        <!-- TAB 1: STUDENT CLOCK-IN/OUT MODE -->
+        <!-- ========================================== -->
+        <section id="view-student" class="space-y-6">
+            
+            <!-- Location / GPS Status Banner -->
+            <div id="gps-status-card" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 transition-all duration-300">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-start space-x-3">
+                        <div id="gps-icon-bg" class="p-3 rounded-full bg-amber-100 text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0">
+                            <i id="gps-icon" class="fa-solid fa-location-dot text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-slate-800">사무실 위치 검증</span>
+                                <span id="gps-badge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">
+                                    위치 확인 중...
+                                </span>
+                            </div>
+                            <p id="gps-message" class="text-xs text-slate-500 mt-1">
+                                현재 GPS 위치 데이터를 가져오고 있습니다.
+                            </p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">
+                                등록된 사무실: <span id="office-coords-text">위도 37.5665, 경도 126.9780 (허용반경 50m)</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 self-end sm:self-center">
+                        <button onclick="checkLocation()" class="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg flex items-center space-x-1 transition">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                            <span>위치 새로고침</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Test Override Switch -->
+                <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                    <span class="flex items-center space-x-1.5 text-slate-500">
+                        <i class="fa-solid fa-vial"></i>
+                        <span>테스트용 GPS 우회 옵션 (사무실 외부에서도 테스트 가능)</span>
+                    </span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="gps-override-toggle" class="sr-only peer" onchange="toggleGpsOverride(this.checked)">
+                        <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Student Selection & Action Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-5">
+                <div>
+                    <label for="student-select" class="block text-sm font-semibold text-slate-700 mb-2">
+                        <i class="fa-solid fa-user-graduate text-brand-600 mr-1"></i> 학생 선택
+                    </label>
+                    <select id="student-select" onchange="onStudentSelectChange()" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Selected Student Info Summary -->
+                <div id="student-summary-box" class="bg-slate-50 p-3.5 rounded-lg border border-slate-200/80 text-xs text-slate-600 flex flex-wrap justify-between gap-2">
+                    <div>학과: <span id="summary-dept" class="font-semibold text-slate-800">-</span></div>
+                    <div>학번: <span id="summary-id" class="font-semibold text-slate-800">-</span></div>
+                    <div>오늘 근무 상태: <span id="summary-status" class="font-bold text-slate-700">미출근</span></div>
+                </div>
+
+                <!-- Note Input -->
+                <div>
+                    <label for="clock-note" class="block text-xs font-semibold text-slate-600 mb-1">
+                        근무 메모 / 특이사항 (선택 입력)
+                    </label>
+                    <input type="text" id="clock-note" placeholder="예: 주요 업무 내용, 조퇴 사유 등" class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <!-- Clock In / Clock Out Buttons -->
+                <div class="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
+                    <button id="btn-clock-in" onclick="handleClockAction('출근')" class="py-4 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-base sm:text-lg shadow-md hover:shadow-lg transition flex flex-col items-center justify-center space-y-1 disabled:opacity-50 disabled:pointer-events-none">
+                        <i class="fa-solid fa-right-to-bracket text-2xl mb-0.5"></i>
+                        <span>출근하기</span>
+                        <span id="btn-in-time" class="text-[11px] font-normal text-emerald-100">--:--</span>
+                    </button>
+
+                    <button id="btn-clock-out" onclick="handleClockAction('퇴근')" class="py-4 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold text-base sm:text-lg shadow-md hover:shadow-lg transition flex flex-col items-center justify-center space-y-1 disabled:opacity-50 disabled:pointer-events-none">
+                        <i class="fa-solid fa-right-from-bracket text-2xl mb-0.5"></i>
+                        <span>퇴근하기</span>
+                        <span id="btn-out-time" class="text-[11px] font-normal text-rose-100">--:--</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recent Clock Logs -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-list-check text-brand-600"></i>
+                        <span>최근 실시간 출/퇴근 내역</span>
+                    </h2>
+                    <span class="text-xs text-slate-400">최근 10건</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 text-slate-500 uppercase border-b border-slate-200">
+                            <tr>
+                                <th class="py-2.5 px-3">일시</th>
+                                <th class="py-2.5 px-3">학생명</th>
+                                <th class="py-2.5 px-3">구분</th>
+                                <th class="py-2.5 px-3">위치검증</th>
+                                <th class="py-2.5 px-3">메모</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-logs-tbody" class="divide-y divide-slate-100">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: MONTHLY PRINT PREVIEW MODE (A4)     -->
+        <!-- ========================================== -->
+        <section id="view-print" class="hidden space-y-6">
+            
+            <!-- Controls Bar (No Print) -->
+            <div class="no-print bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">근무 월 선택</label>
+                        <input type="month" id="print-month-select" value="2026-10" onchange="renderA4Sheet()" class="px-3 py-1.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">대상 학생 선택</label>
+                        <select id="print-student-select" onchange="renderA4Sheet()" class="px-3 py-1.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-brand-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">봉사 시급 (원)</label>
+                        <div class="relative">
+                            <input type="number" id="hourly-wage-input" value="10030" step="10" onchange="renderA4Sheet()" onkeyup="renderA4Sheet()" class="w-28 px-2.5 py-1.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-brand-500 font-mono text-right pr-6">
+                            <span class="absolute right-2 top-1.5 text-xs text-slate-400">원</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="window.print()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm rounded-lg shadow flex items-center space-x-2 transition">
+                        <i class="fa-solid fa-print"></i>
+                        <span>A4 출근부 인쇄 / PDF 저장</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- A4 SHEET PREVIEW CONTAINER -->
+            <div class="bg-slate-300/60 p-2 sm:p-8 rounded-xl overflow-x-auto flex justify-center no-print-bg">
+                
+                <!-- Actual A4 Document Sheet -->
+                <div id="a4-document" class="a4-container bg-white text-slate-900 w-[210mm] min-h-[297mm] p-[12mm] shadow-xl border border-slate-200 text-xs leading-normal flex flex-col justify-between">
+                    
+                    <div>
+                        <!-- Document Header -->
+                        <div class="text-center mb-4">
+                            <h1 class="text-2xl font-bold underline underline-offset-8 decoration-2 tracking-widest text-black">
+                                봉사장학생 근무 출근부
+                            </h1>
+                        </div>
+
+                        <!-- Basic Information Table -->
+                        <div class="mb-3">
+                            <table class="w-full border-collapse border border-black text-center text-xs">
+                                <tr>
+                                    <th class="border border-black bg-slate-100 p-1.5 font-bold w-1/6">소 속 부 서</th>
+                                    <td class="border border-black p-1.5 w-2/6" id="a4-dept">컴퓨터공학과</td>
+                                    <th class="border border-black bg-slate-100 p-1.5 font-bold w-1/6">근 무 월</th>
+                                    <td class="border border-black p-1.5 w-2/6" id="a4-month">2026년 10월</td>
+                                </tr>
+                                <tr>
+                                    <th class="border border-black bg-slate-100 p-1.5 font-bold">학 번</th>
+                                    <td class="border border-black p-1.5" id="a4-student-id">202312045</td>
+                                    <th class="border border-black bg-slate-100 p-1.5 font-bold">성 명</th>
+                                    <td class="border border-black p-1.5 font-bold text-sm" id="a4-student-name">김민수</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Daily Work Log Table -->
+                        <div class="mb-3">
+                            <table class="w-full border-collapse border border-black text-center text-xs">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="border border-black py-1 px-1 w-10">일자</th>
+                                        <th class="border border-black py-1 px-1 w-10">요일</th>
+                                        <th class="border border-black py-1 px-2">출근 시각</th>
+                                        <th class="border border-black py-1 px-2">퇴근 시각</th>
+                                        <th class="border border-black py-1 px-2 w-20">근무 시간</th>
+                                        <th class="border border-black py-1 px-2">비고 / 업무내용</th>
+                                        <th class="border border-black py-1 px-1 w-14">확인</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="a4-tbody">
+                                    <!-- Populated dynamically via JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-slate-50 font-bold">
+                                        <td border class="border border-black p-1.5 text-center" colspan="4">합 계</td>
+                                        <td class="border border-black p-1.5 text-center text-brand-900" id="a4-total-hours">0시간 0분</td>
+                                        <td class="border border-black p-1.5 text-left" colspan="2" id="a4-summary-days">총 근무일수: 0일</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Scholarship Calculation Box (Requested Feature) -->
+                        <div class="mb-4">
+                            <table class="w-full border-collapse border border-black text-center text-xs">
+                                <tr class="bg-slate-100">
+                                    <th class="border border-black p-1.5 w-1/4 font-bold">월 총 근무시간</th>
+                                    <th class="border border-black p-1.5 w-1/4 font-bold">적용 시급</th>
+                                    <th class="border border-black p-1.5 w-2/4 font-bold bg-amber-50">예상 봉사장학금 총 지급액</th>
+                                </tr>
+                                <tr>
+                                    <td class="border border-black p-2 font-semibold" id="calc-total-hours-str">0시간 0분 (0시간)</td>
+                                    <td class="border border-black p-2 font-mono" id="calc-wage-str">10,030원</td>
+                                    <td class="border border-black p-2 font-bold text-sm text-brand-900 bg-amber-50/40" id="calc-scholarship-total">0원</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Confirmation Statement -->
+                        <div class="my-4 text-center space-y-2 py-1">
+                            <p class="text-xs text-slate-700">위와 같이 봉사장학생의 근무 일수 및 산출 내역을 정확히 확인하고 출근부를 제출합니다.</p>
+                            <p class="text-sm font-semibold tracking-wide" id="a4-submit-date">2026년 10월 31일</p>
+                            <p class="text-xs font-bold text-right pr-6">봉사장학생 (제출자) : <span id="a4-sign-student-name" class="underline underline-offset-4 ml-1 mr-4">김민수</span> (서명 / 인)</p>
+                        </div>
+                    </div>
+
+                    <!-- Signatures Box -->
+                    <div class="mt-2 pt-1">
+                        <table class="w-full border-collapse border border-black text-center">
+                            <tr>
+                                <th class="border border-black bg-slate-100 p-1.5 w-1/2 font-bold text-xs">
+                                    작성자 / 담당자 확인
+                                </th>
+                                <th class="border border-black bg-slate-100 p-1.5 w-1/2 font-bold text-xs">
+                                    학과장 / 부서장 승인
+                                </th>
+                            </tr>
+                            <tr>
+                                <td class="border border-black h-16 align-bottom p-1.5 text-slate-400 text-[11px]">
+                                    (인 또는 서명)
+                                </td>
+                                <td class="border border-black h-16 align-bottom p-1.5 text-slate-400 text-[11px]">
+                                    (인 또는 서명)
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: ADMIN & GPS SETTINGS                -->
+        <!-- ========================================== -->
+        <section id="view-admin" class="hidden space-y-6">
+            
+            <!-- Office GPS Coordinates Settings -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+                <h2 class="font-bold text-slate-800 text-base flex items-center space-x-2 border-b border-slate-100 pb-3">
+                    <i class="fa-solid fa-map-location-dot text-brand-600"></i>
+                    <span>학과 사무실 위치 (GPS) 기준점 설정</span>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">위도 (Latitude)</label>
+                        <input type="number" step="0.000001" id="setting-lat" value="37.5665" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">경도 (Longitude)</label>
+                        <input type="number" step="0.000001" id="setting-lng" value="126.9780" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">출근 허용 반경 (m)</label>
+                        <input type="number" id="setting-radius" value="50" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                    <button onclick="getCurrentGpsForSetting()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg flex items-center space-x-1.5 transition">
+                        <i class="fa-solid fa-crosshairs"></i>
+                        <span>현재 내 위치로 설정값 가져오기</span>
+                    </button>
+                    <button onclick="saveGpsSettings()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium text-xs rounded-lg shadow transition">
+                        GPS 설정 저장
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Management -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h2 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-users text-brand-600"></i>
+                        <span>근무 봉사장학생 명단 관리</span>
+                    </h2>
+                    <button onclick="openAddStudentModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1 transition">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>학생 추가</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 text-slate-500 uppercase border-b border-slate-200">
+                            <tr>
+                                <th class="py-2.5 px-3">학번</th>
+                                <th class="py-2.5 px-3">성명</th>
+                                <th class="py-2.5 px-3">소속 학과</th>
+                                <th class="py-2.5 px-3 text-right">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-students-tbody" class="divide-y divide-slate-100">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reset & Sample Data Controls -->
+            <div class="bg-slate-100 rounded-xl p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div>
+                    <p class="font-bold text-slate-700">데이터 초기화 옵션</p>
+                    <p class="text-slate-500">기본 샘플 데이터로 복원하거나 전체 출퇴근 기록을 초기화합니다.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="resetToSampleData()" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow transition">
+                        샘플 데이터로 초기화
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER (No Print) -->
+    <footer class="no-print bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
+            <p>대학교 봉사장학생 온라인 출근부 시스템 &copy; 2026. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <!-- ADD STUDENT MODAL -->
+    <div id="student-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">신규 봉사장학생 추가</h3>
+                <button onclick="closeAddStudentModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">성명</label>
+                    <input type="text" id="new-student-name" placeholder="예: 홍길동" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">학번</label>
+                    <input type="text" id="new-student-id" placeholder="예: 202410123" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">소속 학과</label>
+                    <input type="text" id="new-student-dept" value="컴퓨터공학과" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="closeAddStudentModal()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium">취소</button>
+                <button onclick="saveNewStudent()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Default Storage Keys
+        const STORAGE_KEY_STUDENTS = 'univ_attendance_students';
+        const STORAGE_KEY_LOGS = 'univ_attendance_logs';
+        const STORAGE_KEY_GPS = 'univ_attendance_gps';
+
+        // Initial Sample Data
+        const SAMPLE_STUDENTS = [
+            { id: '202312045', name: '김민수', dept: '컴퓨터공학과' },
+            { id: '202411082', name: '이수진', dept: '컴퓨터공학과' },
+            { id: '202215019', name: '박철민', dept: '경영학과' }
+        ];
+
+        let defaultGps = {
+            lat: 37.5665,
+            lng: 126.9780,
+            radius: 50 // meters
+        };
+
+        // Current App State
+        let currentStudents = [];
+        let currentLogs = [];
+        let officeGps = { ...defaultGps };
+        let userCurrentLocation = null;
+        let isGpsVerified = false;
+        let isGpsOverride = false;
+
+        // Initialize App on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            initClock();
+            loadLocalStorageData();
+            renderStudentDropdowns();
+            renderRecentLogs();
+            renderAdminStudentList();
+            checkLocation();
+        });
+
+        // Real-time Clock Initialization
+        function initClock() {
+            const updateClock = () => {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const date = now.getDate();
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const dayStr = days[now.getDay()];
+
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+
+                document.getElementById('current-date-str').textContent = `${year}년 ${month}월 ${date}일 (${dayStr})`;
+                document.getElementById('realtime-clock').textContent = `${hours}:${minutes}:${seconds}`;
+
+                // Update clock-in/out button current times
+                const shortTime = `${hours}:${minutes}`;
+                document.getElementById('btn-in-time').textContent = `[현재 ${shortTime}]`;
+                document.getElementById('btn-out-time').textContent = `[현재 ${shortTime}]`;
+            };
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        // Load or Seed Data
+        function loadLocalStorageData() {
+            const storedStudents = localStorage.getItem(STORAGE_KEY_STUDENTS);
+            if (storedStudents) {
+                currentStudents = JSON.parse(storedStudents);
+            } else {
+                currentStudents = SAMPLE_STUDENTS;
+                localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(currentStudents));
+            }
+
+            const storedGps = localStorage.getItem(STORAGE_KEY_GPS);
+            if (storedGps) {
+                officeGps = JSON.parse(storedGps);
+            } else {
+                localStorage.setItem(STORAGE_KEY_GPS, JSON.stringify(defaultGps));
+            }
+
+            const storedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
+            if (storedLogs) {
+                currentLogs = JSON.parse(storedLogs);
+            } else {
+                currentLogs = generateSampleLogs();
+                localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(currentLogs));
+            }
+
+            // Sync settings UI fields
+            document.getElementById('setting-lat').value = officeGps.lat;
+            document.getElementById('setting-lng').value = officeGps.lng;
+            document.getElementById('setting-radius').value = officeGps.radius;
+            document.getElementById('office-coords-text').textContent = `위도 ${officeGps.lat}, 경도 ${officeGps.lng} (허용반경 ${officeGps.radius}m)`;
+        }
+
+        // Generate realistic sample logs for current month
+        function generateSampleLogs() {
+            const logs = [];
+            const student = SAMPLE_STUDENTS[0];
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+
+            // Generate work days
+            const sampleDays = [2, 4, 7, 9, 11, 14, 16, 18, 21, 23, 25];
+            sampleDays.forEach(day => {
+                if (day <= now.getDate()) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    logs.push({
+                        id: 'log_' + Math.random().toString(36).substr(2, 9),
+                        studentId: student.id,
+                        studentName: student.name,
+                        dept: student.dept,
+                        type: '출근',
+                        timestamp: `${dateStr} 09:00:15`,
+                        date: dateStr,
+                        time: '09:00',
+                        verified: true,
+                        note: '정시 출근'
+                    });
+                    logs.push({
+                        id: 'log_' + Math.random().toString(36).substr(2, 9),
+                        studentId: student.id,
+                        studentName: student.name,
+                        dept: student.dept,
+                        type: '퇴근',
+                        timestamp: `${dateStr} 13:00:40`,
+                        date: dateStr,
+                        time: '13:00',
+                        verified: true,
+                        note: '주요 업무 정리 완료'
+                    });
+                }
+            });
+            return logs;
+        }
+
+        // Render Student Dropdowns
+        function renderStudentDropdowns() {
+            const studentSelect = document.getElementById('student-select');
+            const printStudentSelect = document.getElementById('print-student-select');
+
+            studentSelect.innerHTML = '';
+            printStudentSelect.innerHTML = '';
+
+            currentStudents.forEach(st => {
+                const opt1 = document.createElement('option');
+                opt1.value = st.id;
+                opt1.textContent = `${st.name} (${st.dept} / ${st.id})`;
+                studentSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = st.id;
+                opt2.textContent = `${st.name} (${st.id})`;
+                printStudentSelect.appendChild(opt2);
+            });
+
+            onStudentSelectChange();
+        }
+
+        function onStudentSelectChange() {
+            const select = document.getElementById('student-select');
+            const studentId = select.value;
+            const student = currentStudents.find(s => s.id === studentId);
+
+            if (student) {
+                document.getElementById('summary-dept').textContent = student.dept;
+                document.getElementById('summary-id').textContent = student.id;
+                document.getElementById('header-dept-display').textContent = `${student.dept} 학과사무실`;
+
+                // Check today's status
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todayLogs = currentLogs.filter(l => l.studentId === student.id && l.date === todayStr);
+                
+                const lastLog = todayLogs[todayLogs.length - 1];
+                const statusElem = document.getElementById('summary-status');
+                if (!lastLog) {
+                    statusElem.textContent = '미출근';
+                    statusElem.className = 'font-bold text-slate-500';
+                } else if (lastLog.type === '출근') {
+                    statusElem.textContent = `근무 중 (${lastLog.time} 출근)`;
+                    statusElem.className = 'font-bold text-emerald-600';
+                } else {
+                    statusElem.textContent = `퇴근 완료 (${lastLog.time} 퇴근)`;
+                    statusElem.className = 'font-bold text-rose-600';
+                }
+            }
+        }
+
+        // GEOLOCATION VERIFICATION LOGIC
+        function checkLocation() {
+            const badge = document.getElementById('gps-badge');
+            const msg = document.getElementById('gps-message');
+            const iconBg = document.getElementById('gps-icon-bg');
+
+            if (isGpsOverride) {
+                badge.textContent = '테스트 우회 사용중';
+                badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800';
+                msg.textContent = 'GPS 위치 검증 우회 기능이 활성화되었습니다. 위치와 상관없이 출근이 가능합니다.';
+                iconBg.className = 'p-3 rounded-full bg-blue-100 text-blue-600 flex-shrink-0 mt-0.5 sm:mt-0';
+                isGpsVerified = true;
+                return;
+            }
+
+            badge.textContent = 'GPS 위치 조회 중...';
+            badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800';
+
+            if (!navigator.geolocation) {
+                badge.textContent = 'GPS 미지원';
+                badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-rose-100 text-rose-800';
+                msg.textContent = '사용 중인 브라우저가 위치 정보 서비스를 지원하지 않습니다.';
+                isGpsVerified = false;
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    userCurrentLocation = { lat: userLat, lng: userLng };
+
+                    const distance = calculateDistance(userLat, userLng, officeGps.lat, officeGps.lng);
+
+                    if (distance <= officeGps.radius) {
+                        badge.textContent = '사무실 확인 완료 (출근 가능)';
+                        badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800';
+                        msg.textContent = `사무실 반경 내에 위치해 있습니다. (현재 오차거리: 약 ${Math.round(distance)}m)`;
+                        iconBg.className = 'p-3 rounded-full bg-emerald-100 text-emerald-600 flex-shrink-0 mt-0.5 sm:mt-0';
+                        isGpsVerified = true;
+                    } else {
+                        badge.textContent = '사무실 범위를 벗어남';
+                        badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-rose-100 text-rose-800';
+                        msg.textContent = `사무실 위치에서 떨어져 있습니다. (현재 거리: 약 ${Math.round(distance)}m, 허용: ${officeGps.radius}m)`;
+                        iconBg.className = 'p-3 rounded-full bg-rose-100 text-rose-600 flex-shrink-0 mt-0.5 sm:mt-0';
+                        isGpsVerified = false;
+                    }
+                },
+                (error) => {
+                    badge.textContent = '위치 수신 실패';
+                    badge.className = 'px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800';
+                    msg.textContent = 'GPS 권한을 허용해 주시거나 [테스트 우회] 옵션을 켜주세요.';
+                    isGpsVerified = false;
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+
+        // Haversine formula for distance calculation in meters
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // metres
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+
+        function toggleGpsOverride(checked) {
+            isGpsOverride = checked;
+            checkLocation();
+        }
+
+        // CLOCK IN / CLOCK OUT ACTION
+        function handleClockAction(type) {
+            if (!isGpsVerified) {
+                alert('사무실 반경 범위 내에서만 출/퇴근 등록이 가능합니다.\n(테스트 시 우회 옵션을 켜주세요.)');
+                return;
+            }
+
+            const studentId = document.getElementById('student-select').value;
+            const student = currentStudents.find(s => s.id === studentId);
+            if (!student) return;
+
+            const noteInput = document.getElementById('clock-note');
+            const noteText = noteInput.value.trim();
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timeStr = `${hours}:${minutes}`;
+
+            const newLog = {
+                id: 'log_' + Date.now(),
+                studentId: student.id,
+                studentName: student.name,
+                dept: student.dept,
+                type: type,
+                timestamp: `${dateStr} ${hours}:${minutes}:${seconds}`,
+                date: dateStr,
+                time: timeStr,
+                verified: true,
+                note: noteText || (type === '출근' ? '출근 완료' : '퇴근 완료')
+            };
+
+            currentLogs.unshift(newLog);
+            localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(currentLogs));
+
+            noteInput.value = '';
+            onStudentSelectChange();
+            renderRecentLogs();
+
+            alert(`${student.name} 학생의 ${type} 처리가 정상 완료 되었습니다. (${timeStr})`);
+        }
+
+        // Render Recent Logs Table
+        function renderRecentLogs() {
+            const tbody = document.getElementById('recent-logs-tbody');
+            tbody.innerHTML = '';
+
+            const recent = currentLogs.slice(0, 10);
+            if (recent.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-400">등록된 출/퇴근 내역이 없습니다.</td></tr>`;
+                return;
+            }
+
+            recent.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+
+                const badgeColor = log.type === '출근' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-mono text-[11px] text-slate-500">${log.timestamp}</td>
+                    <td class="py-2.5 px-3 font-bold text-slate-800">${log.studentName}</td>
+                    <td class="py-2.5 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">${log.type}</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-emerald-600 text-[11px]">
+                        <i class="fa-solid fa-circle-check mr-1"></i>확인됨
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-500 truncate max-w-[150px]">${log.note || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // RENDER A4 PRINTABLE SHEET WITH HOURLY WAGE CALCULATION
+        function renderA4Sheet() {
+            const monthVal = document.getElementById('print-month-select').value;
+            const studentId = document.getElementById('print-student-select').value;
+            const hourlyWage = parseInt(document.getElementById('hourly-wage-input').value) || 0;
+
+            const student = currentStudents.find(s => s.id === studentId);
+            if (!student || !monthVal) return;
+
+            const [yearStr, monthStr] = monthVal.split('-');
+            const year = parseInt(yearStr);
+            const month = parseInt(monthStr);
+
+            // Update basic info
+            document.getElementById('a4-dept').textContent = student.dept;
+            document.getElementById('a4-month').textContent = `${year}년 ${month}월`;
+            document.getElementById('a4-student-id').textContent = student.id;
+            document.getElementById('a4-student-name').textContent = student.name;
+            document.getElementById('a4-sign-student-name').textContent = student.name;
+
+            // Submit Date
+            const lastDay = new Date(year, month, 0).getDate();
+            document.getElementById('a4-submit-date').textContent = `${year}년 ${month}월 ${lastDay}일`;
+
+            // Filter logs
+            const studentLogs = currentLogs.filter(l => {
+                if (l.studentId !== student.id) return false;
+                const logDate = new Date(l.date);
+                return logDate.getFullYear() === year && (logDate.getMonth() + 1) === month;
+            });
+
+            // Group logs by date
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const tbody = document.getElementById('a4-tbody');
+            tbody.innerHTML = '';
+
+            let totalMinutes = 0;
+            let totalWorkDays = 0;
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayPadded = String(d).padStart(2, '0');
+                const dateString = `${year}-${monthStr}-${dayPadded}`;
+                const dayOfWeek = new Date(year, month - 1, d).getDay();
+                const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+                const dayLogs = studentLogs.filter(l => l.date === dateString);
+                const clockIn = dayLogs.find(l => l.type === '출근');
+                const clockOut = dayLogs.find(l => l.type === '퇴근');
+
+                let inTimeText = '-';
+                let outTimeText = '-';
+                let dailyHoursText = '-';
+                let noteText = '';
+                let isChecked = false;
+
+                if (clockIn) {
+                    inTimeText = clockIn.time;
+                    noteText = clockIn.note || '';
+                }
+                if (clockOut) {
+                    outTimeText = clockOut.time;
+                    if (clockOut.note && clockOut.note !== '퇴근 완료') {
+                        noteText += (noteText ? ' / ' : '') + clockOut.note;
+                    }
+                }
+
+                if (clockIn && clockOut) {
+                    const [inH, inM] = clockIn.time.split(':').map(Number);
+                    const [outH, outM] = clockOut.time.split(':').map(Number);
+                    
+                    let diffM = (outH * 60 + outM) - (inH * 60 + inM);
+                    if (diffM > 0) {
+                        totalMinutes += diffM;
+                        totalWorkDays++;
+                        const h = Math.floor(diffM / 60);
+                        const m = diffM % 60;
+                        dailyHoursText = m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
+                        isChecked = true;
+                    }
+                }
+
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const trClass = isWeekend ? 'bg-slate-50/50' : '';
+
+                const tr = document.createElement('tr');
+                tr.className = trClass;
+                tr.innerHTML = `
+                    <td class="border border-black py-0.5 px-1">${d}</td>
+                    <td class="border border-black py-0.5 px-1 ${dayOfWeek === 0 ? 'text-red-600' : dayOfWeek === 6 ? 'text-blue-600' : ''}">${dayNames[dayOfWeek]}</td>
+                    <td class="border border-black py-0.5 px-1 font-mono">${inTimeText}</td>
+                    <td class="border border-black py-0.5 px-1 font-mono">${outTimeText}</td>
+                    <td class="border border-black py-0.5 px-1">${dailyHoursText}</td>
+                    <td class="border border-black py-0.5 px-1 text-left text-[11px]">${noteText}</td>
+                    <td class="border border-black py-0.5 px-1 text-center">${isChecked ? '확인' : ''}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            // Calculate total display & scholarship allowance
+            const totalH = Math.floor(totalMinutes / 60);
+            const totalM = totalMinutes % 60;
+            const decimalHours = (totalMinutes / 60);
+
+            // Calculation formula: (Decimal hours) * hourly wage
+            const scholarshipTotal = Math.round(decimalHours * hourlyWage);
+
+            document.getElementById('a4-total-hours').textContent = totalM > 0 ? `${totalH}시간 ${totalM}분` : `${totalH}시간`;
+            document.getElementById('a4-summary-days').textContent = `총 근무일수: ${totalWorkDays}일`;
+
+            // Scholarship summary table values
+            document.getElementById('calc-total-hours-str').textContent = `${totalH}시간 ${totalM}분 (${decimalHours.toFixed(1)}시간)`;
+            document.getElementById('calc-wage-str').textContent = `${hourlyWage.toLocaleString()}원`;
+            document.getElementById('calc-scholarship-total').textContent = `${scholarshipTotal.toLocaleString()}원`;
+        }
+
+        // TAB SWITCHING LOGIC
+        function switchTab(tabName) {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn px-4 py-2.5 font-medium border-b-2 border-transparent text-brand-100 hover:text-white flex items-center space-x-2 whitespace-nowrap';
+            });
+
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            activeBtn.className = 'tab-btn px-4 py-2.5 font-medium border-b-2 border-amber-400 text-white flex items-center space-x-2 whitespace-nowrap';
+
+            if (tabName === 'student') {
+                document.getElementById('view-student').classList.remove('hidden');
+            } else if (tabName === 'print') {
+                document.getElementById('view-print').classList.remove('hidden');
+                renderA4Sheet();
+            } else if (tabName === 'admin') {
+                document.getElementById('view-admin').classList.remove('hidden');
+            }
+        }
+
+        // ADMIN FUNCTIONS
+        function saveGpsSettings() {
+            const lat = parseFloat(document.getElementById('setting-lat').value);
+            const lng = parseFloat(document.getElementById('setting-lng').value);
+            const radius = parseInt(document.getElementById('setting-radius').value);
+
+            if (isNaN(lat) || isNaN(lng) || isNaN(radius)) {
+                alert('올바른 위도, 경도, 반경 수치를 입력해주세요.');
+                return;
+            }
+
+            officeGps = { lat, lng, radius };
+            localStorage.setItem(STORAGE_KEY_GPS, JSON.stringify(officeGps));
+            document.getElementById('office-coords-text').textContent = `위도 ${officeGps.lat}, 경도 ${officeGps.lng} (허용반경 ${officeGps.radius}m)`;
+
+            alert('학과 사무실 GPS 기준점이 정상 변경되었습니다.');
+            checkLocation();
+        }
+
+        function getCurrentGpsForSetting() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    document.getElementById('setting-lat').value = pos.coords.latitude.toFixed(6);
+                    document.getElementById('setting-lng').value = pos.coords.longitude.toFixed(6);
+                    alert('현재 내 GPS 위치 좌표를 불러왔습니다.');
+                }, err => {
+                    alert('현재 위치 정보를 가져올 수 없습니다.');
+                });
+            }
+        }
+
+        function renderAdminStudentList() {
+            const tbody = document.getElementById('admin-students-tbody');
+            tbody.innerHTML = '';
+
+            currentStudents.forEach(st => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-mono text-slate-700">${st.id}</td>
+                    <td class="py-2.5 px-3 font-bold text-slate-800">${st.name}</td>
+                    <td class="py-2.5 px-3 text-slate-600">${st.dept}</td>
+                    <td class="py-2.5 px-3 text-right">
+                        <button onclick="deleteStudent('${st.id}')" class="text-rose-600 hover:text-rose-800 p-1">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAddStudentModal() {
+            document.getElementById('student-modal').classList.remove('hidden');
+        }
+
+        function closeAddStudentModal() {
+            document.getElementById('student-modal').classList.add('hidden');
+        }
+
+        function saveNewStudent() {
+            const name = document.getElementById('new-student-name').value.trim();
+            const id = document.getElementById('new-student-id').value.trim();
+            const dept = document.getElementById('new-student-dept').value.trim();
+
+            if (!name || !id || !dept) {
+                alert('모든 필수 학생 정보를 입력해 주세요.');
+                return;
+            }
+
+            if (currentStudents.some(s => s.id === id)) {
+                alert('이미 등록된 학번입니다.');
+                return;
+            }
+
+            currentStudents.push({ id, name, dept });
+            localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(currentStudents));
+
+            renderStudentDropdowns();
+            renderAdminStudentList();
+            closeAddStudentModal();
+
+            document.getElementById('new-student-name').value = '';
+            document.getElementById('new-student-id').value = '';
+            alert(`${name} 학생이 성공적으로 등록되었습니다.`);
+        }
+
+        function deleteStudent(id) {
+            if (confirm('해당 학생을 명단에서 삭제하시겠습니까?')) {
+                currentStudents = currentStudents.filter(s => s.id !== id);
+                localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(currentStudents));
+                renderStudentDropdowns();
+                renderAdminStudentList();
+            }
+        }
+
+        function resetToSampleData() {
+            if (confirm('모든 데이터를 기본 샘플 상태로 초기화하시겠습니까?')) {
+                localStorage.removeItem(STORAGE_KEY_STUDENTS);
+                localStorage.removeItem(STORAGE_KEY_LOGS);
+                localStorage.removeItem(STORAGE_KEY_GPS);
+                loadLocalStorageData();
+                renderStudentDropdowns();
+                renderRecentLogs();
+                renderAdminStudentList();
+                alert('초기화가 완료되었습니다.');
+            }
+        }
+
+        function toggleMobileNav() {
+            const nav = document.getElementById('nav-tabs');
+            nav.classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
